@@ -1,0 +1,639 @@
+---
+title: "Randomly Forested"
+output: html_notebook
+---
+
+
+# Learning Objectives
+
+- Machine Learning v Inferential Statistics
+- Review CART Models
+- Introduce the ideas behind bootstrapping and Random Forests
+
+# Machine Learning v Inferential Statistics
+
+What does the term machine learning mean to you?
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/R9OHn5ZF4Uo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+- Linear Regression has it's origins in the first decade of the 19th century.
+    - Method of Least Squares by Legendre (1805), Gauss (1809)
+    - In the early 20th century, this idea was debated and extended by mathematicians such as Yule, Pearson, and Fisher.
+    - In the 50's and 60's completing a single regression could take hours.
+- Logistic Regression has it's origins in the 1830s and 1840s. 
+    - The underlying idea was developed independently several times in different fields of study.
+    - Early applications included modeling autocatalytic reactions in chemistry and population growth.
+    - Bliss, Gaddum, and Fisher (he is everywhere!) extended these ideas in the 1930s. This work led to the probit model.
+        - Probit is a combination of the words probability and unit, prob + it
+    - 1940s when Berkson developed the logit function in 1944 which would eventually replace the probit function.
+        - Logit or log-odds is the logarithm of the odds p/(1-p) where p is the probability.
+        - Remember how I told you there was a relationship between the odds ratio and logistic regression?
+        - Well, that's it!
+- Although linear and logistic regression are POWERFUL techniques, they hard to apply to increasingly complex data.
+    - They are entirely appropriate in cases where the data is constrained in terms of complexity AND suitable domain experts are available.
+    - They can mislead when working with large data sets because it so easy to achieve statistical significance, which is often seen as a hallmark of a valid model.
+- Classification And Regression Tree (CART) was developed in 1984 by Breiman.
+    - This introduced the use of the gini impurity.
+    - The strength of CART models is that they are transparent to the user and the computer sometimes finds important/useful breakpoints in the data which a human might not have discovered.
+    - There are many different ways to calculate/assemble a CART model. Some use statistical significance. Many do not.
+    - It is easy to let the computer overfit the model.
+- Random Forests were introduced by Ho in 1995.
+    - Sought to address the tendency of overfit CART models.
+    - Based on sampling theory.
+    - Rather than a single CART model, use many CART models! This is why it is called an ensemble technique.
+    - Each model would be based on a sample of the original data and a sample of the original features (columns).
+    - Random Forests can be used for classification or regression problems.
+    - The resulting model is often slow and unwieldy which can lead to limitations applying the model to new data at scale.
+- Decision Trees and Random Forests are often seen as early methods of what we now call machine learning.
+    
+Machine Learning can be, simplistically, defined as the study of computer algorithms that improve automatically through experience and by the use of data.
+    - In statistics, machine learning is often focused on predictive analysis. 
+    - Traditional statistical tools such as linear and logistic regression strongly emphasize the affect each part of the model has on the whole.
+    - However, there are ways to extract feature importance from most so-called "black-box" models and 
+    - Both are built on different facets of probability theory. Machine Learning leverages the almost unbelievable power of modern computers to do things which would have been computationally impossible only a few decades ago.
+        - Remember, statisticians used to spend hours or days on calculating a single model.
+        - We will build and throw-away several linear regression models in our lab this week. They will each take you seconds to calculate.
+
+# Setup
+
+```{r setup, message=FALSE, warning=FALSE}
+rm(list = ls())
+library(knitr)
+library(modelr)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(tidyverse)
+
+## This prevents R from using scientific notation.
+options(scipen=999)
+
+train <- 
+  read_csv("data/train_clean.csv") %>% 
+  ## Remember, decision trees treat numbers as continuous variables.
+  ## If you number is more of a factor/category, make that explicit.
+  mutate(
+    pclass = as.factor(pclass),
+    sex = as.factor(sex),
+    child = as.logical(child),
+    embarked = as.factor(embarked),
+    port = as.factor(embarked)
+  )
+test <- 
+  read_csv("data/test_clean.csv") %>% 
+  ## Remember, decision trees treat numbers as continuous variables.
+  ## If you number is more of a factor/category, make that explicit.
+  mutate(
+    pclass = as.factor(pclass),
+    child = as.logical(child)
+  )
+train
+```
+
+# Where we left off.
+
+## Our first CART model
+
+```{r}
+cart_model <- rpart(survived~sex, data = train, method = "class")
+summary(cart_model)
+rpart.plot(cart_model)
+```
+
+I mean, it is kinda pretty in a brutally simplistic way.
+
+```{r}
+## Let it go crazy.
+cart_model <- 
+  train %>% 
+  ## We will take a few things out, just to control the crazy a little.
+  select(-name, -ticket, -cabin, -passengerid) %>%
+  ## . has two different meanings here!
+  rpart(survived~., data = ., method = "class")
+summary(cart_model)
+rpart.plot(cart_model)
+```
+
+## Let's add cabin
+
+```{r}
+## Let it do what it wants to do, mostly.
+cart_model <- 
+  train %>% 
+  ## We will take a few things out, just to control the crazy a little.
+  ## Please note WHICH columns we are excluding. Why are we doing this?
+  select(-name, -ticket, -cabin, -passengerid) %>%
+  ## . has two different meanings here!
+  rpart(survived~., data = ., method = "class")
+summary(cart_model)
+rpart.plot(cart_model)
+```
+
+Observations:
+- You would think passenger class and fare would correlate, and they do.
+- But they do so less strongly than you might expect.
+- Stop for a moment and think about how hard it would be for you to manually find these "cut points".
+
+```{r}
+train %>% 
+  mutate(fare = round(fare, -1)) %>% 
+  group_by(pclass, fare) %>% 
+  count() %>% 
+  ggplot(aes(x = pclass, y = fare, fill = n)) +
+  geom_tile()
+```
+
+- The overlap between first class and third class is interesting. Those may be children.
+- The overlap between second class and third class is real interesting.
+
+## Let's Add Cabin
+
+```{r}
+## Let it do what it wants to do, mostly.
+cart_model <- 
+  train %>% 
+  ## Now it has access to cabin.
+  select(-name, -ticket, -passengerid) %>%
+  ## . has two different meanings here!
+  rpart(survived~., data = ., method = "class")
+summary(cart_model)
+rpart.plot(cart_model)
+```
+- And suddenly it thinks `cabin` is ALMOST as important as sex, at least for men.
+- It is also rather hard to read.
+- And this is overfitting at it's ~finest~ worst.
+- Let's discuss what overfitting is.
+
+```{r}
+train_cabins <- 
+  train %>%
+  group_by(cabin) %>%
+  summarize(train_cabin_count = n())
+test_cabins <- 
+  test %>%
+  group_by(cabin) %>%
+  summarize(test_cabin_count = n())
+train_cabins %>% full_join(test_cabins, by = "cabin")
+```
+
+- A model trained to focus on cabin will overfit the data.
+- And this means that the information (pattern) which rpart _thinks_ it is finding in the training data set is not applicable to the test data set.
+- And OMG, now we need to talk about train versus test data.
+
+**TRAIN:** Data used to TRAIN the model.
+**TEST:** Data used to TEST the model.
+
+Obvious right?
+
+It is, and yet it isn't. Most academic papers don't do this (or if they do, they don't discuss it). But it is critically important to assess the fit of your model. We've talked about the replicability crisis. And this is part of the solution to that. Back when statistical methods were first designed, a big data set might have been 100 patients. And, in that scenario you really need all 100 patients to achieve statistical power. But in a world where we can, and do, frequently model on data sets in the thousands and often tens of thousands or millions, it is often a GOOD trade-off to partition your data to give your model more than one phase of testing.
+
+It is common, in machine learning, to split the data 80/20. You use 80% of your data to train your model and 20% to test it. The results (confusion matrix) between the two should be similar (allowing for differences in sample size). 
+
+And this kind of partitioning can, sometimes, protect us from having silly things in our model such as cabin which may _seem_ like a good idea while we are training but will then cause the model to fall apart spectacularly on the test data.
+
+To avoid over-fitting a Decision Tree, you can also adjust parameters such as:
+
+-  minsplit:	the minimum number of observations that must exist in a node in order for a split to be attempted.
+- minbucket: the minimum number of observations in any terminal <leaf> node.
+- You can set a maxdepth, to control how deep your tree grows.
+
+But these will only take you so far. To go farther, you have to go BIGGER!
+
+
+
+# From One Tree, To Many
+
+- Thus far, we have built a single tree.
+- And single trees can be over fit (and we talked about some ways to control for this).
+- But there is one even more interesting way to control for overfitting.
+- Instead of building one tree, build 1,000 (or more)!
+- [Wikipedia: Random Forests](https://en.wikipedia.org/wiki/Random_forest)
+
+But first I need to introduce bagging, which is basically an applied form of the bootstrap.
+
+```{r}
+## What is the average age of a passenger?
+train %>%
+  summarize(
+    avg_age = mean(age, na.rm = TRUE)
+  )
+```
+
+But if we assume this average tells us something larger about the average age of people who may have sailed on a ship LIKE the Titanic, what kind of average age would we expect to find? And it isn't quite right to say, simply, 29.41285. For starters, too precise. Secondly, we know age is skewed and that could skew the results.
+
+```{r}
+train %>% ggplot(aes(age)) + geom_density()
+```
+
+We should take from this that there are:
+
+- Probably some minority of children on board.
+- The peak will be a little over 20.
+- And we have a long tail, that includes people much older than that.
+- But how does this affect our average, if we assume this is ONE example of a trend?
+- Well, we could make our own trend.
+
+```{r}
+## The one-thousand voyages of Titanic!
+repetitions <- 1000
+average_age <- numeric(repetitions)
+for (i in 1:repetitions) {
+  titanic_voyage_ages <- sample(train$age[!is.na(train$age)], size = repetitions, replace = TRUE)
+  average_age_this_voyage <- mean(titanic_voyage_ages, na.rm = TRUE)
+  average_age[i] <- average_age_this_voyage
+}
+mean_average_age <- mean(average_age)
+mean_average_age
+sd_average_age <- sd(average_age)
+sd_average_age
+
+ggplot(data = tibble(average_age), aes(average_age)) +
+  geom_density() +
+  geom_vline(aes(xintercept = mean_average_age), color = "red") +
+  geom_vline(aes(xintercept = mean_average_age+2*sd_average_age), color = "blue") +
+  geom_vline(aes(xintercept = mean_average_age-2*sd_average_age), color = "blue")
+```
+
+- This suggests that, on average, Titanic may have actually been a _little_ on the young side.
+- It also demonstrates how we can try to generalize a pattern out of a single sample.
+- Each average must have the same number of elements as the original. Else it is invalid.
+    - Drops NAs
+- We can look at a single sample of ages.
+
+```{r}
+## These are the samepled ages of our LAST randomly selected voyage.
+titanic_voyage_ages
+```
+
+- So, if this works, and it does. We can apply this idea on a larger scale.
+- Imagine selecting a copy/sample of our titanic data.
+    - And imagine, if you will, that we can make as many new samples of data as we want!
+    - This is like the bootstrap, but for the entire data set!
+    - But, we need to drop any row with a NA (null) value, because those violate the bootstrap rule!
+
+```{r}
+train_no_na <-
+  train %>% 
+  select(-name, -ticket, -cabin, -passengerid) %>%
+  drop_na()
+
+train_new_voyage <- 
+  train_no_na %>%
+  sample_n(size = nrow(train_no_na), replace = TRUE)
+
+train_no_na %>% group_by(survived) %>% count()
+train_new_voyage %>% group_by(survived) %>% count()
+```
+
+- Imagine doing this a thousand times and each time, getting a slightly different sample.
+- And, to make sure the trees themselves model on different features, each tree is modeled using a random subset of the features.
+    - Some models will not have age or sex, for example.
+    - And some models will not include passenger class.
+    - This means that the models differ quite a lot.
+    
+```{r}
+cart_model <- 
+  train_new_voyage %>% 
+  ## Now it has access to cabin.
+  select(-sex, -pclass) %>%
+  ## . has two different meanings here!**Pro Tips:** 
+
+- You **must** say `collect(n = 10)` and not `collect(10)`!
+    - The latter works, eventually, but it downloads **EVERYTHING**
+- Do not disconnect until AFTER you have finished running `collect()`!
+
+
+
+# Use dplyr functions on remote data objects
+
+We can interact with our locally mapped objects with the dplyr functions we all know and ♥.
+
+```{r}
+site_name <- "ALBANY FAMILY MEDICINE"
+gender <- "Female"
+
+data %>%
+    filter(SiteNM == local(site_name), Gender == local(gender), PrimaryAccountFLG == 1) %>%
+    collect(n = 10)
+```
+
+- Resolve variables to strings using `local()`.
+- An expression is not a tibble or data.frame until you collect the result set.
+   - This can cause problems with functions such as `datatable()` and `ggplot()`.
+- Imagine I want a ggplot showing a bar plot of patients imputed to each PCP.
+    - I will first define my data, and then pass it to ggplot.
+
+```{r}
+my_data <- 
+  data %>%
+    filter(SiteNM == local(site_name), PrimaryAccountFLG == 1) %>% 
+  group_by(PCP) %>% 
+  count()
+```
+
+```{r}
+my_data %>% 
+  is_tibble(.)
+```
+
+```{r}
+my_data %>% 
+  collect() %>% 
+  is_tibble(.)
+```
+
+
+
+# Local objects, from SQL
+
+If there isn't a table that does what you want, just create it!
+
+```{r}
+bmi_sql <- "
+select
+     v.PatientID
+    ,v.LegacyGroupNM
+    ,v.FindingCreateDTS
+    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
+from MasterCCP.AllPatients.Vitals v  
+where FindingDSC = 'BMI Calculated'
+"
+bmi <- con %>%
+    tbl(sql(bmi_sql)) %>%
+    filter(rn == 1)
+bmi %>%
+    collect(n = 10)
+```
+
+- Be careful when you are jumping between SQL and R. It is easy to make mistakes
+- SQL Booleans are `a = 'value'`
+- R Booleans are `a == 'value'`
+- Want to know how many times I've screwed this up?
+
+There is also one simple reality you must accept if you with to write SQL by hand for use with `tbl()`:
+- YOU CANNOT USE CTEs IN THESE QUERIES!
+- YOU CANNOT USE CTEs IN THESE QUERIES!
+- In case you did not hear me - YOU CANNOT USE CTEs IN THESE QUERIES!
+- But subqueries are totally, 100%, A-OK.
+
+## If you make a mistake
+
+'Cuz you will . . . . 
+
+```{r}
+bmi_sql <- "
+select
+     v.PatientID
+    ,v.LegacyGroupNM
+    ,v.FindingCreateDTS
+    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
+from MasterCCP.AllPatients.Vitals v  
+where FindingDSC = 'BMI Calculated'
+"
+bmi <-
+    con %>%
+    tbl(sql(bmi_sql)) %>%
+    filter(rn == 1)
+
+bmi %>%
+    show_query()
+```
+
+- Rather than run the SQL, you can always make R show you what the SQL
+  will look like first.
+- Look carefully at this SQL. This is why you cannot make use of CTEs.
+    - R is constructing SQL full of subqueries, which is normal for an ORM.
+    - But you cannot have a CTE in a subquery.
+
+# Go ahead, join things!
+
+- The `dplyr` package allows you to make full use of `inner_join`, `left_join`, etc.
+- You can do so with SQL too
+- And you can do some interesting mixing and matching
+
+```{r}
+## Here, we are connecting to a specific database object.
+empanelment <-
+    con %>%
+    tbl(in_schema(schema = "MasterCCP.AllPatients", "Empanelment"))
+
+## Here, we are creating an object that does not really exist on the EDW directly. 
+bmi_sql <- "
+select
+     v.PatientID
+    ,v.LegacyGroupNM
+    ,v.FindingCreateDTS
+    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
+from MasterCCP.AllPatients.Vitals v  
+where FindingDSC = 'BMI Calculated'
+"
+bmi <-
+    con %>%
+    tbl(sql(bmi_sql)) %>%
+    filter(rn == 1)
+site_name <- "ALBANY FAMILY MEDICINE"
+
+## Yes, we can join them!
+empanelment %>%
+    filter(SiteNM == local(site_name)) %>%
+    select(MRN, PatientID, LegacyGroupNM) %>%
+    inner_join(bmi, by = c("PatientID", "LegacyGroupNM")) %>%
+    collect(n = 10)
+```
+
+- In this instance, R will let the database server do all the heavy lifting for the SQL and only download the result set.
+- You can mix hand-written queries AND table references:
+    - And then treat them both as objects in R.
+    - This can get expensive.
+- You can even join across database connections, if you are OK with it being VERY slow. 
+    - In this case, R has to perform the join locally.
+    - So you lose the speed advantage of doing the calculation where the data is.
+      - Hint: Don't do this. Not worth it unless you must do this.
+
+# Temp Tables
+
+- And now your life too is nearly complete!
+- This creates a LOCAL temp table (Which we should explain/discuss)
+- To create temp table, use `compute()` rather than `collect()`.
+    - Like collect, this is not lazily evaluated. This is evaluated immediately.
+    - But the results are NOT downloaded. They are left on the server unless needed.
+
+```{r}
+bmi_sql <- "
+select
+     v.PatientID
+    ,v.LegacyGroupNM
+    ,v.FindingCreateDTS
+    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
+from MasterCCP.AllPatients.Vitals v  
+where FindingDSC = 'BMI Calculated'
+"
+bmi <-
+    con %>%
+    tbl(sql(bmi_sql)) %>%
+    filter(rn == 1)
+bmi <- compute(bmi)
+bmi %>% summarize(n = n())
+```
+
+- Look at the above CLOSELY
+- At the end of this code chunk, BMI has been converted to a temp table
+- I did not download the several hundred thousand rows.
+- The database server just told me the number of rows in the temp table.
+
+
+# Mutate is Tricky
+
+- Mutate is tricky. But, it works. If you use it carefully.
+- All R functions used must have SQL equivalents.
+- Some functions work better than others.
+- Where possible, consider doing mutate locally.
+- Or just wrote some custom SQL.
+
+```{r}
+data %>%
+    mutate(
+        MyCol = case_when(
+            LegacyGroupNM == "CCMG"~1,
+            LegacyGroupNM == "CCP"~2,
+            TRUE~3)
+    ) %>%
+    select(MRN, LegacyGroupNM, MyCol) %>%
+    collect(n = 10)
+```
+
+# The Big Advantage
+
+- So, what's the advantage here?
+- Good question!
+- If you never have to download the data, everything gets done faster.
+
+For example. The MasterCCP Empanelment table has, well, a bunch of
+rows in it. Let's see how many.
+
+```{r}
+data %>%
+    count() %>%
+    collect()
+```
+
+Downloading that many rows, is not trivial. But if what we want is just a count of how many rows are in each legacy group, we don't need to download the data locally.
+
+```{r}
+data %>%
+    group_by(LegacyGroupNM) %>%
+    count() %>%
+    collect()
+```
+
+- This off-loads the calculation cost from our local R client to the EDW.
+- And that is both good and bad. But mostly good.
+- Why spend your life downloading data, forever?
+- Local objects don't help us as much in a machine learning context.
+
+
+
+# Questions
+
+- What else do you want to understand about SQL in R?
+- Future COPs I am thinking about (some of these may take more than one session):
+   - Welcome to the tidyverse
+   - Static RMarkdown
+   - SHINY RMarkdown
+   - SHINY Dashboard (no more RMarkdown)
+
+
+
+# Clean Up After Yourself!!!
+
+```{r}
+dbDisconnect(con)
+```
+
+  rpart(survived~., data = ., method = "class")
+summary(cart_model)
+rpart.plot(cart_model)
+```
+- If we remove sex and passenger class, it is still possible to derive a decision tree.
+- The model is using fare as a substitute for passenger class.
+- And now imagine doing this a thousand times and then AVERAGING the results.
+- And THAT is a random forest.
+- Lots of decision trees, created at random, creates a random forest.
+    - They are statisticians, not comedians.
+
+Advantages:
+
+- Typically have very good performance
+- Remarkably good “out-of-the box” - very little tuning required
+- Built-in validation set - don’t need to sacrifice data for extra validation
+- No pre-processing required
+- Robust to outliers
+
+Disadvantages:
+
+- Can become slow on large data sets
+- Although accurate, often cannot compete with advanced boosting algorithms
+- Less interpretable
+- If missingness itself is a pattern, random forests will tend to miss this
+
+
+```{r}
+rf_model <- randomForest(survived~., data = train_no_na)
+summary(rf_model)
+plot(rf_model)
+```
+
+```{r}
+train_no_na$pred <- predict(rf_model, newdata = train_no_na)
+
+train_no_na <- 
+  train_no_na %>% 
+  mutate(
+    pred_survived = round(pred)
+  )
+
+## This is our confusion matrix from last week!
+confusion <- 
+  train_no_na %>%
+  group_by(survived) %>%
+  summarise(pred_survived = sum(pred_survived),
+            pred_not_survived = n() - sum(pred_survived)
+            )
+confusion
+```
+
+```{r}
+accuracy <-
+  confusion %>% 
+  summarize(
+    ## This is just the total of right answers divided by the total number of rows.
+    (pred_survived[survived == 1] + pred_not_survived[survived == 0]) / nrow(train)
+  )
+accuracy * 100
+```
+
+- Now, sadly, this is about as good as what we did last week, but it shows the power in the idea.
+- But this is a reasonable introduction to random forests, which are a form of black-box machine learning.
+
+# So, where are we now and where do we go next?
+
+```{r echo=FALSE}
+knitr::include_graphics("includes/data-science.png")
+```
+
+- Remember this graphic? Let's stop and take stock of what we are doing at this point.
+- I do want to spend some time with you before our time together ends discussing logistic regression.
+    - While seriously old it is still seriously powerful.
+    - I also want to demonstrate how you can use CART models to improve logistic regression models.
+    - These things don't have to exist in isolation.
+- There is also room here for you all to have some say in how we close out the semester.
+    - I assume you don't want to do more data transformation, although we can if you love it that much.
+- Ideas/Options:
+    - GIS
+        - Covid Maps!!!!
+    - Performing reproducible research in R Markdown
+    - Web-scraping data
+    - More advanced programming techniques such as looping or writing custom functions.
+    - Deep dive on the math behind logistic regression, gini impurity, etc.
+
+
