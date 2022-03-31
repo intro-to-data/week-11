@@ -4,12 +4,6 @@ output: html_notebook
 ---
 
 
-# Learning Objectives
-
-- Machine Learning v Inferential Statistics
-- Review CART Models
-- Introduce the ideas behind bootstrapping and Random Forests
-
 # Machine Learning v Inferential Statistics
 
 What does the term machine learning mean to you?
@@ -32,608 +26,453 @@ What does the term machine learning mean to you?
 - Although linear and logistic regression are POWERFUL techniques, they hard to apply to increasingly complex data.
     - They are entirely appropriate in cases where the data is constrained in terms of complexity AND suitable domain experts are available.
     - They can mislead when working with large data sets because it so easy to achieve statistical significance, which is often seen as a hallmark of a valid model.
-- Classification And Regression Tree (CART) was developed in 1984 by Breiman.
-    - This introduced the use of the gini impurity.
-    - The strength of CART models is that they are transparent to the user and the computer sometimes finds important/useful breakpoints in the data which a human might not have discovered.
-    - There are many different ways to calculate/assemble a CART model. Some use statistical significance. Many do not.
-    - It is easy to let the computer overfit the model.
-- Random Forests were introduced by Ho in 1995.
-    - Sought to address the tendency of overfit CART models.
-    - Based on sampling theory.
-    - Rather than a single CART model, use many CART models! This is why it is called an ensemble technique.
-    - Each model would be based on a sample of the original data and a sample of the original features (columns).
-    - Random Forests can be used for classification or regression problems.
-    - The resulting model is often slow and unwieldy which can lead to limitations applying the model to new data at scale.
-- Decision Trees and Random Forests are often seen as early methods of what we now call machine learning.
-    
-Machine Learning can be, simplistically, defined as the study of computer algorithms that improve automatically through experience and by the use of data.
-    - In statistics, machine learning is often focused on predictive analysis. 
-    - Traditional statistical tools such as linear and logistic regression strongly emphasize the affect each part of the model has on the whole.
-    - However, there are ways to extract feature importance from most so-called "black-box" models and 
-    - Both are built on different facets of probability theory. Machine Learning leverages the almost unbelievable power of modern computers to do things which would have been computationally impossible only a few decades ago.
-        - Remember, statisticians used to spend hours or days on calculating a single model.
-        - We will build and throw-away several linear regression models in our lab this week. They will each take you seconds to calculate.
 
-# Setup
+# Last Week's Lab
 
-```{r setup, message=FALSE, warning=FALSE}
-rm(list = ls())
+- Question: How hard did this feel?
+
+## Setup
+
+```{r message=FALSE, warning=FALSE}
 library(knitr)
-library(modelr)
-library(randomForest)
-library(rpart)
-library(rpart.plot)
 library(tidyverse)
-
-## This prevents R from using scientific notation.
-options(scipen=999)
-
-train <- 
-  read_csv("data/train_clean.csv") %>% 
-  ## Remember, decision trees treat numbers as continuous variables.
-  ## If you number is more of a factor/category, make that explicit.
-  mutate(
-    pclass = as.factor(pclass),
-    sex = as.factor(sex),
-    child = as.logical(child),
-    embarked = as.factor(embarked),
-    port = as.factor(embarked)
-  )
-test <- 
-  read_csv("data/test_clean.csv") %>% 
-  ## Remember, decision trees treat numbers as continuous variables.
-  ## If you number is more of a factor/category, make that explicit.
-  mutate(
-    pclass = as.factor(pclass),
-    child = as.logical(child)
-  )
-train
+strokes <- read_csv("data/strokes.csv") %>% filter(gender != "Other")
 ```
 
-# Where we left off.
+## Data - Strokes
 
-## Our first CART model
+Source: [Kaggle Stroke Prediction Dataset](https://www.kaggle.com/fedesoriano/stroke-prediction-dataset)
 
-```{r}
-cart_model <- rpart(survived~sex, data = train, method = "class")
-summary(cart_model)
-rpart.plot(cart_model)
+```{r paged.print=TRUE}
+strokes
 ```
 
-I mean, it is kinda pretty in a brutally simplistic way.
+1. id: unique patient identifier
+2. gender: "Male", "Female" or "Other"
+3. age: age of the patient
+4. hypertension: 0 if the patient doesn't have hypertension, 1 if the patient has hypertension
+5. heart_disease: 0 if the patient doesn't have any heart diseases, 1 if the patient has a heart disease
+6. ever_married: "No" or "Yes"
+7. work_type: "children", "Govt_jov", "Never_worked", "Private" or "Self-employed"
+8. residence_type: "Rural" or "Urban"
+9. avg_glucose_level: average glucose level in blood
+10. bmi: body mass index
+11. smoking_status: "formerly smoked", "never smoked", "smokes" or "Unknown"*
+12. stroke: 1 if the patient had a stroke or 0 if not
+
+*Note: "Unknown" in smoking_status means that the information is unavailable for this patient
+
+## Lab
+
+### Task 01
+
+- Question: The data includes some information about the employment of the patients. Which work type is the most prevalent in this data set?
+- Answer: Private
+
+To prevent confusion, your options below are identical to what you should have found in your data. In Canvas complete this task with one of the following:
+
+    1. children
+    2. Govt_job
+    3. Never_worked
+    4. Private
+    5. Self-employed
+
+Helpful Hints: The entries in the `work_type` column are formatted oddly, but that's OK. There's always _something_ funny about a data set.
 
 ```{r}
-## Let it go crazy.
-cart_model <- 
-  train %>% 
-  ## We will take a few things out, just to control the crazy a little.
-  select(-name, -ticket, -cabin, -passengerid) %>%
-  ## . has two different meanings here!
-  rpart(survived~., data = ., method = "class")
-summary(cart_model)
-rpart.plot(cart_model)
+strokes %>%
+  count(work_type) %>%
+  arrange(desc(n))
 ```
 
-## Let's add cabin
+### Task 02
+
+- Question: Use R to calculate the percent of patients who are children (based on work type/Task 01).
+- Answer: 13.4%
+
+Helpful Hints:
+
+- In other words, divide the work_type count by the total.
+- And yes, you CAN do this without R, but the point is to do this using R.
+- And the easiest way is to calculate the percent for all of the work types.
 
 ```{r}
-## Let it do what it wants to do, mostly.
-cart_model <- 
-  train %>% 
-  ## We will take a few things out, just to control the crazy a little.
-  ## Please note WHICH columns we are excluding. Why are we doing this?
-  select(-name, -ticket, -cabin, -passengerid) %>%
-  ## . has two different meanings here!
-  rpart(survived~., data = ., method = "class")
-summary(cart_model)
-rpart.plot(cart_model)
+strokes %>%
+  count(work_type) %>%
+  mutate(100*n/nrow(strokes))
+
+## Or, less elegantly
+strokes %>%
+  count(work_type) %>%
+  mutate(100*n/5109)
 ```
 
-Observations:
-- You would think passenger class and fare would correlate, and they do.
-- But they do so less strongly than you might expect.
-- Stop for a moment and think about how hard it would be for you to manually find these "cut points".
+
+### Task 03
+
+- Question: Which patients are more likely to have had a stroke, men or women? 
+- Answer: Of course, the gentlemen win this one.
+
+Helpful Hints:
+
+- We want to calculate the percentage of patients with a stroke.
+    - This is just like what we did with the titanic data, but we calculated the percent of passengers who died.
+    - But it is the EXACT same idea.
 
 ```{r}
-train %>% 
-  mutate(fare = round(fare, -1)) %>% 
-  group_by(pclass, fare) %>% 
-  count() %>% 
-  ggplot(aes(x = pclass, y = fare, fill = n)) +
-  geom_tile()
-```
-
-- The overlap between first class and third class is interesting. Those may be children.
-- The overlap between second class and third class is real interesting.
-
-## Let's Add Cabin
-
-```{r}
-## Let it do what it wants to do, mostly.
-cart_model <- 
-  train %>% 
-  ## Now it has access to cabin.
-  select(-name, -ticket, -passengerid) %>%
-  ## . has two different meanings here!
-  rpart(survived~., data = ., method = "class")
-summary(cart_model)
-rpart.plot(cart_model)
-```
-- And suddenly it thinks `cabin` is ALMOST as important as sex, at least for men.
-- It is also rather hard to read.
-- And this is overfitting at it's ~finest~ worst.
-- Let's discuss what overfitting is.
-
-```{r}
-train_cabins <- 
-  train %>%
-  group_by(cabin) %>%
-  summarize(train_cabin_count = n())
-test_cabins <- 
-  test %>%
-  group_by(cabin) %>%
-  summarize(test_cabin_count = n())
-train_cabins %>% full_join(test_cabins, by = "cabin")
-```
-
-- A model trained to focus on cabin will overfit the data.
-- And this means that the information (pattern) which rpart _thinks_ it is finding in the training data set is not applicable to the test data set.
-- And OMG, now we need to talk about train versus test data.
-
-**TRAIN:** Data used to TRAIN the model.
-**TEST:** Data used to TEST the model.
-
-Obvious right?
-
-It is, and yet it isn't. Most academic papers don't do this (or if they do, they don't discuss it). But it is critically important to assess the fit of your model. We've talked about the replicability crisis. And this is part of the solution to that. Back when statistical methods were first designed, a big data set might have been 100 patients. And, in that scenario you really need all 100 patients to achieve statistical power. But in a world where we can, and do, frequently model on data sets in the thousands and often tens of thousands or millions, it is often a GOOD trade-off to partition your data to give your model more than one phase of testing.
-
-It is common, in machine learning, to split the data 80/20. You use 80% of your data to train your model and 20% to test it. The results (confusion matrix) between the two should be similar (allowing for differences in sample size). 
-
-And this kind of partitioning can, sometimes, protect us from having silly things in our model such as cabin which may _seem_ like a good idea while we are training but will then cause the model to fall apart spectacularly on the test data.
-
-To avoid over-fitting a Decision Tree, you can also adjust parameters such as:
-
--  minsplit:	the minimum number of observations that must exist in a node in order for a split to be attempted.
-- minbucket: the minimum number of observations in any terminal <leaf> node.
-- You can set a maxdepth, to control how deep your tree grows.
-
-But these will only take you so far. To go farther, you have to go BIGGER!
-
-
-
-# From One Tree, To Many
-
-- Thus far, we have built a single tree.
-- And single trees can be over fit (and we talked about some ways to control for this).
-- But there is one even more interesting way to control for overfitting.
-- Instead of building one tree, build 1,000 (or more)!
-- [Wikipedia: Random Forests](https://en.wikipedia.org/wiki/Random_forest)
-
-But first I need to introduce bagging, which is basically an applied form of the bootstrap.
-
-```{r}
-## What is the average age of a passenger?
-train %>%
+strokes %>%
+  group_by(gender) %>%
   summarize(
-    avg_age = mean(age, na.rm = TRUE)
+    n = n(),
+    strokes = sum(stroke),
+    risk = strokes/n*100
   )
 ```
 
-But if we assume this average tells us something larger about the average age of people who may have sailed on a ship LIKE the Titanic, what kind of average age would we expect to find? And it isn't quite right to say, simply, 29.41285. For starters, too precise. Secondly, we know age is skewed and that could skew the results.
+### Task 04
+
+- Question: Do men with hypertension have a higher risk of stroke than women with hypertension?
+- Answer: And this time, the ladies take the "win".
+
+- This is ALMOST the same question.
+- All we need to do is to filter down to those with hypertension.
+- Filter should come before group by.
 
 ```{r}
-train %>% ggplot(aes(age)) + geom_density()
+strokes %>%
+  filter(hypertension == 1) %>%
+  group_by(gender) %>%
+  summarize(
+    n = n(),
+    strokes = sum(stroke),
+    risk = strokes/n*100
+  )
 ```
 
-We should take from this that there are:
+### Task 05
 
-- Probably some minority of children on board.
-- The peak will be a little over 20.
-- And we have a long tail, that includes people much older than that.
-- But how does this affect our average, if we assume this is ONE example of a trend?
-- Well, we could make our own trend.
+- Question: How many patients are over the age of 65?
+- Answer: 965
 
 ```{r}
-## The one-thousand voyages of Titanic!
-repetitions <- 1000
-average_age <- numeric(repetitions)
-for (i in 1:repetitions) {
-  titanic_voyage_ages <- sample(train$age[!is.na(train$age)], size = repetitions, replace = TRUE)
-  average_age_this_voyage <- mean(titanic_voyage_ages, na.rm = TRUE)
-  average_age[i] <- average_age_this_voyage
-}
-mean_average_age <- mean(average_age)
-mean_average_age
-sd_average_age <- sd(average_age)
-sd_average_age
+strokes %>% filter(age > 65)
+```
 
-ggplot(data = tibble(average_age), aes(average_age)) +
+If this seems weird, it was. It was originally the first step in something more complex that I felt guilty about after the midterm and the fact that I had just canceled class. So, yeah. Weird.
+
+### Task 06
+
+- Question: What is the risk ratio for stroke for men compared to women?
+- Answer: 1.084926
+
+Helpful Hint:
+
+- It may help to calculate this all as two steps.
+- First calculate the risk of stroke for men and women.
+    - Save this in a table called risk.
+- Then calculate the risk ratio.
+- And remember, if you can't figure out the fancy code for the risk ratio but you can figure out the gender-specific risk, you can just use R like a calculator and calculate the risk ratio manually.
+
+```{r}
+## Go back to a previous question:
+risk_gender <-
+  strokes %>%
+  group_by(gender) %>%
+  summarize(
+    n = n(),
+    strokes = sum(stroke),
+    risk = strokes/n*100
+  )
+risk_gender
+
+## Inelegant, but correct:
+## I know, I didn't show you this.
+## But did anyone think of it?
+5.11/4.71
+
+## OK, we can code this. Seriously, we can.
+## And, yes, dplyr tends to suppress long annoying fractions.
+## This uses a touch of base r style coding.
+risk_gender %>%
+  summarize(
+    risk_ratio = risk[gender == "Male"]/risk[gender == "Female"]
+  )
+
+## Or the totally 100% dplyr style.
+## Which is verbose. Sorry.
+risk_gender %>%
+  summarize(
+    risk_ratio = max(if_else(gender == "Male", risk, 0))/max(if_else(gender == "Female", risk, 0))
+  )
+
+## Which, if we break it down a little:
+risk_gender %>%
+  summarize(
+    male_risk = max(if_else(gender == "Male", risk, 0)),
+    female_risk = max(if_else(gender == "Female", risk, 0)),
+    risk_ratio = male_risk/female_risk
+  )
+```
+
+- The awesome thing about a programming language is that there are **twelve** ways to solve nearly every problem.
+- The sucky thing about programming is that there are **twelve** ways to solve nearly every problem.
+- The number of possible solutions increases as the problems become more complex.
+- That makes it hard to learn. I'm sorry.
+
+### Task 07
+
+- Question: What is the odds ratio for for stroke for men compared to women?
+- Answer: 1.088
+
+
+```{r}
+## I'm only going to show you one answer to this.
+## But you can, just like with risk ratio, solve this umpteen different ways.
+
+odds_gender <-
+  strokes %>%
+  group_by(gender) %>%
+  summarize(
+    n = n(),
+    strokes = sum(stroke),
+    not_strokes = sum(!stroke),
+    odds = strokes/not_strokes
+  )
+odds_gender
+
+## Inelegant, but correct:
+## I know, I didn't show you this.
+## But did anyone think of it?
+0.0538/0.0494
+
+## PLEASE
+## PLEASE SEE HOW THE RATIO HERE IS NEARLY IDENTICAL.
+## PLEASE
+
+odds_gender %>%
+  summarize(
+    odds_ratio = odds[gender == "Male"]/odds[gender == "Female"]
+  )
+```
+
+- This literally means that for every female who has a stroke, 1.089 men have a stroke. Which, ummm, not OK to cut people up like that.
+- So we often express it in other terms.
+- Per 100: For every 100 women who have a stroke, nearly 109 men have a stroke.
+    - Yes, I rounded.
+    - But this is easier to understand.
+
+### Task 08
+
+- Question: Demonstrate that the same odds ratio can be obtained via logistic regression. Build a model for risk stroke as a function of gender. What is the coefficient for genderMale?
+- Answer: OMG OMG OMG 1.09 which is basically the same as 1.088
+
+```{r}
+model_gender <- glm(stroke~gender, family = binomial, data = strokes)
+summary(model_gender)
+
+
+exp(model_gender$coefficients)
+```
+
+# Return To Titanic
+
+```{r}
+test <- read_csv("data/titanic-test-clean.csv")
+
+titanic <- read_csv("data/titanic-train-clean.csv") %>%
+  mutate(died = !survived) %>%
+  select(-survived)
+titanic
+```
+
+- Last week we built TWO logistic regression models.
+- This week, I want to go a bit further.
+- Above, I told you that logistic regression was just the log odds.
+
+So, why not use linear regression to model this?
+
+```{r}
+titanic %>%
+  mutate(prob = as.numeric(died)) %>%
+  ggplot(aes(x = sex, y = prob)) +
+  geom_jitter()
+```
+
+- Where would my line go, exactly? It doesn't make any sense.
+- In linear regression, residuals must be normally distributed.
+- There's nowhere on this graph where that can be true.
+- And there's no great way to plot this in general.
+- We can, in fairness, plot numerics in a manner that is meanginful.
+
+```{r}
+titanic %>%
+  mutate(prob = as.numeric(died)) %>%
+  ggplot(aes(x = age, y = prob)) +
+  geom_point(alpha = .25) +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    fullrange = TRUE,
+    method.args = list(family = "binomial")
+  )
+
+##And we can stratify this by facet_wrap.
+```
+
+- Clearly, the odds of died as a male are "worse" than for women.
+- And this is hard to understand too. For every 1/3 of a female who dies, over four men die? I mean, OK, but, it still isn't OK to cut people up.
+- Per 100: For every 35 female who died, 429 males died. Yikes.
+- So the logs odds ratio is just:
+
+```{r}
+odds <-
+  titanic %>%
+  group_by(sex) %>%
+  summarize(
+    n = n(),
+    died = sum(died),
+    survived = n-died, ## or sum(!died)
+    odds = died/survived
+  )
+odds
+```
+
+And so the odds ratio is:
+
+```{r}
+4.29/.348
+```
+
+Or we could be a bit more formal:
+
+```{r}
+odds %>%
+  summarize(
+    odds[sex == "male"]/odds[sex == "female"]
+  )
+```
+
+Which is basically the same thing. Finally the log of our odds ratio:
+
+
+```{r}
+log(12.32759)
+```
+
+Now, let's look at a model:
+
+```{r}
+model_sex <- glm(died~sex, family = binomial, data = titanic)
+summary(model_sex)
+```
+
+- The estimate for sexmale matches our log odds ratio calculation.
+- But there's a lot more here.
+- Null deviance (1186.7 on 890 degrees of freedom): How well does the intercept describe the model?
+- Residual deviance (917.8 on 889 degrees of freedom): How well does the proposed model describe the model?
+- Lower is better.
+- The bigger the difference between the Null deviance and the Residual deviance, the better.
+- And, last week, we used this model to classify.
+
+```{r}
+titanic$fitted <-
+  predict(newdata = titanic %>% mutate(died = NA), model_sex)
+
+ggplot(titanic, aes(x = exp(fitted))) + geom_histogram()
+
+titanic <- 
+  titanic %>%
+  mutate(
+    predicted = case_when(exp(fitted) > 1~1, TRUE~0)
+  )
+
+titanic %>%
+  group_by(died) %>%
+  summarize(
+    predicted_died = sum(if_else(predicted == 1, 1, 0)),
+    predicted_survived = sum(if_else(predicted == 0, 1, 0))
+  )
+```
+
+- Now, let's build a more complex model.
+- Let's see this in action.
+
+```{r}
+model_sex_age <- glm(died~sex+age, family = binomial, data = titanic)
+summary(model_sex_age)
+```
+
+By adding age to the model, Null and Residual deviance both decreased (good).
+
+```{r}
+titanic$fitted <-
+  predict(newdata = titanic %>% mutate(died = NA), model_sex_age)
+
+titanic <- 
+  titanic %>%
+  mutate(
+    predicted = case_when(exp(fitted) > 1~1, TRUE~0)
+  )
+
+titanic %>%
+  group_by(died) %>%
+  summarize(
+    predicted_died = sum(if_else(predicted == 1, 1, 0)),
+    predicted_survived = sum(if_else(predicted == 0, 1, 0))
+  )
+```
+
+- Our model is more precise (see Null/Residual deviance).
+- But our confusion matrix hasn't changed at all.
+- Which, actually, makes sense.
+
+```{r}
+ggplot(titanic, aes(x = exp(fitted))) + geom_histogram()
+```
+
+- Although we _did_ create a better model, our classification isn't any better.
+- But maybe we can help.
+
+```{r}
+model_sex_age_class <-
+  glm(died~sex + age + pclass, family = binomial, data = titanic)
+summary(model_sex_age_class)
+
+titanic$fitted <-
+  predict(newdata = titanic %>% mutate(died = NA), model_sex_age_class)
+
+titanic <- 
+  titanic %>%
+  mutate(
+    predicted = case_when(exp(fitted) > 1~1, TRUE~0)
+  )
+
+titanic %>%
+  group_by(died) %>%
+  summarize(
+    predicted_died = sum(if_else(predicted == 1, 1, 0)),
+    predicted_survived = sum(if_else(predicted == 0, 1, 0))
+  )
+```
+
+So, huh?
+
+```{r}
+ggplot(titanic, aes(x = exp(fitted))) +
   geom_density() +
-  geom_vline(aes(xintercept = mean_average_age), color = "red") +
-  geom_vline(aes(xintercept = mean_average_age+2*sd_average_age), color = "blue") +
-  geom_vline(aes(xintercept = mean_average_age-2*sd_average_age), color = "blue")
+  geom_vline(aes(xintercept = 1), color = "red", width = 2) +
+  facet_wrap(~pclass)
 ```
 
-- This suggests that, on average, Titanic may have actually been a _little_ on the young side.
-- It also demonstrates how we can try to generalize a pattern out of a single sample.
-- Each average must have the same number of elements as the original. Else it is invalid.
-    - Drops NAs
-- We can look at a single sample of ages.
-
-```{r}
-## These are the samepled ages of our LAST randomly selected voyage.
-titanic_voyage_ages
-```
-
-- So, if this works, and it does. We can apply this idea on a larger scale.
-- Imagine selecting a copy/sample of our titanic data.
-    - And imagine, if you will, that we can make as many new samples of data as we want!
-    - This is like the bootstrap, but for the entire data set!
-    - But, we need to drop any row with a NA (null) value, because those violate the bootstrap rule!
-
-```{r}
-train_no_na <-
-  train %>% 
-  select(-name, -ticket, -cabin, -passengerid) %>%
-  drop_na()
-
-train_new_voyage <- 
-  train_no_na %>%
-  sample_n(size = nrow(train_no_na), replace = TRUE)
-
-train_no_na %>% group_by(survived) %>% count()
-train_new_voyage %>% group_by(survived) %>% count()
-```
-
-- Imagine doing this a thousand times and each time, getting a slightly different sample.
-- And, to make sure the trees themselves model on different features, each tree is modeled using a random subset of the features.
-    - Some models will not have age or sex, for example.
-    - And some models will not include passenger class.
-    - This means that the models differ quite a lot.
-    
-```{r}
-cart_model <- 
-  train_new_voyage %>% 
-  ## Now it has access to cabin.
-  select(-sex, -pclass) %>%
-  ## . has two different meanings here!**Pro Tips:** 
-
-- You **must** say `collect(n = 10)` and not `collect(10)`!
-    - The latter works, eventually, but it downloads **EVERYTHING**
-- Do not disconnect until AFTER you have finished running `collect()`!
-
-
-
-# Use dplyr functions on remote data objects
-
-We can interact with our locally mapped objects with the dplyr functions we all know and ♥.
-
-```{r}
-site_name <- "ALBANY FAMILY MEDICINE"
-gender <- "Female"
-
-data %>%
-    filter(SiteNM == local(site_name), Gender == local(gender), PrimaryAccountFLG == 1) %>%
-    collect(n = 10)
-```
-
-- Resolve variables to strings using `local()`.
-- An expression is not a tibble or data.frame until you collect the result set.
-   - This can cause problems with functions such as `datatable()` and `ggplot()`.
-- Imagine I want a ggplot showing a bar plot of patients imputed to each PCP.
-    - I will first define my data, and then pass it to ggplot.
-
-```{r}
-my_data <- 
-  data %>%
-    filter(SiteNM == local(site_name), PrimaryAccountFLG == 1) %>% 
-  group_by(PCP) %>% 
-  count()
-```
-
-```{r}
-my_data %>% 
-  is_tibble(.)
-```
-
-```{r}
-my_data %>% 
-  collect() %>% 
-  is_tibble(.)
-```
-
-
-
-# Local objects, from SQL
-
-If there isn't a table that does what you want, just create it!
-
-```{r}
-bmi_sql <- "
-select
-     v.PatientID
-    ,v.LegacyGroupNM
-    ,v.FindingCreateDTS
-    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
-from MasterCCP.AllPatients.Vitals v  
-where FindingDSC = 'BMI Calculated'
-"
-bmi <- con %>%
-    tbl(sql(bmi_sql)) %>%
-    filter(rn == 1)
-bmi %>%
-    collect(n = 10)
-```
-
-- Be careful when you are jumping between SQL and R. It is easy to make mistakes
-- SQL Booleans are `a = 'value'`
-- R Booleans are `a == 'value'`
-- Want to know how many times I've screwed this up?
-
-There is also one simple reality you must accept if you with to write SQL by hand for use with `tbl()`:
-- YOU CANNOT USE CTEs IN THESE QUERIES!
-- YOU CANNOT USE CTEs IN THESE QUERIES!
-- In case you did not hear me - YOU CANNOT USE CTEs IN THESE QUERIES!
-- But subqueries are totally, 100%, A-OK.
-
-## If you make a mistake
-
-'Cuz you will . . . . 
-
-```{r}
-bmi_sql <- "
-select
-     v.PatientID
-    ,v.LegacyGroupNM
-    ,v.FindingCreateDTS
-    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
-from MasterCCP.AllPatients.Vitals v  
-where FindingDSC = 'BMI Calculated'
-"
-bmi <-
-    con %>%
-    tbl(sql(bmi_sql)) %>%
-    filter(rn == 1)
-
-bmi %>%
-    show_query()
-```
-
-- Rather than run the SQL, you can always make R show you what the SQL
-  will look like first.
-- Look carefully at this SQL. This is why you cannot make use of CTEs.
-    - R is constructing SQL full of subqueries, which is normal for an ORM.
-    - But you cannot have a CTE in a subquery.
-
-# Go ahead, join things!
-
-- The `dplyr` package allows you to make full use of `inner_join`, `left_join`, etc.
-- You can do so with SQL too
-- And you can do some interesting mixing and matching
-
-```{r}
-## Here, we are connecting to a specific database object.
-empanelment <-
-    con %>%
-    tbl(in_schema(schema = "MasterCCP.AllPatients", "Empanelment"))
-
-## Here, we are creating an object that does not really exist on the EDW directly. 
-bmi_sql <- "
-select
-     v.PatientID
-    ,v.LegacyGroupNM
-    ,v.FindingCreateDTS
-    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
-from MasterCCP.AllPatients.Vitals v  
-where FindingDSC = 'BMI Calculated'
-"
-bmi <-
-    con %>%
-    tbl(sql(bmi_sql)) %>%
-    filter(rn == 1)
-site_name <- "ALBANY FAMILY MEDICINE"
-
-## Yes, we can join them!
-empanelment %>%
-    filter(SiteNM == local(site_name)) %>%
-    select(MRN, PatientID, LegacyGroupNM) %>%
-    inner_join(bmi, by = c("PatientID", "LegacyGroupNM")) %>%
-    collect(n = 10)
-```
-
-- In this instance, R will let the database server do all the heavy lifting for the SQL and only download the result set.
-- You can mix hand-written queries AND table references:
-    - And then treat them both as objects in R.
-    - This can get expensive.
-- You can even join across database connections, if you are OK with it being VERY slow. 
-    - In this case, R has to perform the join locally.
-    - So you lose the speed advantage of doing the calculation where the data is.
-      - Hint: Don't do this. Not worth it unless you must do this.
-
-# Temp Tables
-
-- And now your life too is nearly complete!
-- This creates a LOCAL temp table (Which we should explain/discuss)
-- To create temp table, use `compute()` rather than `collect()`.
-    - Like collect, this is not lazily evaluated. This is evaluated immediately.
-    - But the results are NOT downloaded. They are left on the server unless needed.
-
-```{r}
-bmi_sql <- "
-select
-     v.PatientID
-    ,v.LegacyGroupNM
-    ,v.FindingCreateDTS
-    ,row_number() over(partition by v.PatientID, v.LegacyGroupNM order by v.FindingCreateDTS desc) as rn
-from MasterCCP.AllPatients.Vitals v  
-where FindingDSC = 'BMI Calculated'
-"
-bmi <-
-    con %>%
-    tbl(sql(bmi_sql)) %>%
-    filter(rn == 1)
-bmi <- compute(bmi)
-bmi %>% summarize(n = n())
-```
-
-- Look at the above CLOSELY
-- At the end of this code chunk, BMI has been converted to a temp table
-- I did not download the several hundred thousand rows.
-- The database server just told me the number of rows in the temp table.
-
-
-# Mutate is Tricky
-
-- Mutate is tricky. But, it works. If you use it carefully.
-- All R functions used must have SQL equivalents.
-- Some functions work better than others.
-- Where possible, consider doing mutate locally.
-- Or just wrote some custom SQL.
-
-```{r}
-data %>%
-    mutate(
-        MyCol = case_when(
-            LegacyGroupNM == "CCMG"~1,
-            LegacyGroupNM == "CCP"~2,
-            TRUE~3)
-    ) %>%
-    select(MRN, LegacyGroupNM, MyCol) %>%
-    collect(n = 10)
-```
-
-# The Big Advantage
-
-- So, what's the advantage here?
-- Good question!
-- If you never have to download the data, everything gets done faster.
-
-For example. The MasterCCP Empanelment table has, well, a bunch of
-rows in it. Let's see how many.
-
-```{r}
-data %>%
-    count() %>%
-    collect()
-```
-
-Downloading that many rows, is not trivial. But if what we want is just a count of how many rows are in each legacy group, we don't need to download the data locally.
-
-```{r}
-data %>%
-    group_by(LegacyGroupNM) %>%
-    count() %>%
-    collect()
-```
-
-- This off-loads the calculation cost from our local R client to the EDW.
-- And that is both good and bad. But mostly good.
-- Why spend your life downloading data, forever?
-- Local objects don't help us as much in a machine learning context.
-
-
-
-# Questions
-
-- What else do you want to understand about SQL in R?
-- Future COPs I am thinking about (some of these may take more than one session):
-   - Welcome to the tidyverse
-   - Static RMarkdown
-   - SHINY RMarkdown
-   - SHINY Dashboard (no more RMarkdown)
-
-
-
-# Clean Up After Yourself!!!
-
-```{r}
-dbDisconnect(con)
-```
-
-  rpart(survived~., data = ., method = "class")
-summary(cart_model)
-rpart.plot(cart_model)
-```
-- If we remove sex and passenger class, it is still possible to derive a decision tree.
-- The model is using fare as a substitute for passenger class.
-- And now imagine doing this a thousand times and then AVERAGING the results.
-- And THAT is a random forest.
-- Lots of decision trees, created at random, creates a random forest.
-    - They are statisticians, not comedians.
-
-Advantages:
-
-- Typically have very good performance
-- Remarkably good “out-of-the box” - very little tuning required
-- Built-in validation set - don’t need to sacrifice data for extra validation
-- No pre-processing required
-- Robust to outliers
-
-Disadvantages:
-
-- Can become slow on large data sets
-- Although accurate, often cannot compete with advanced boosting algorithms
-- Less interpretable
-- If missingness itself is a pattern, random forests will tend to miss this
-
-
-```{r}
-rf_model <- randomForest(survived~., data = train_no_na)
-summary(rf_model)
-plot(rf_model)
-```
-
-```{r}
-train_no_na$pred <- predict(rf_model, newdata = train_no_na)
-
-train_no_na <- 
-  train_no_na %>% 
+- Did I mention that there's a part of this that is ENTIRELY arbitrary?
+- Why did I do this?
+
+```{r eval=FALSE}
+titanic <- 
+  titanic %>%
   mutate(
-    pred_survived = round(pred)
+    predicted = case_when(exp(fitted) > 1~1, TRUE~0)
   )
-
-## This is our confusion matrix from last week!
-confusion <- 
-  train_no_na %>%
-  group_by(survived) %>%
-  summarise(pred_survived = sum(pred_survived),
-            pred_not_survived = n() - sum(pred_survived)
-            )
-confusion
 ```
 
-```{r}
-accuracy <-
-  confusion %>% 
-  summarize(
-    ## This is just the total of right answers divided by the total number of rows.
-    (pred_survived[survived == 1] + pred_not_survived[survived == 0]) / nrow(train)
-  )
-accuracy * 100
-```
-
-- Now, sadly, this is about as good as what we did last week, but it shows the power in the idea.
-- But this is a reasonable introduction to random forests, which are a form of black-box machine learning.
-
-# So, where are we now and where do we go next?
-
-```{r echo=FALSE}
-knitr::include_graphics("includes/data-science.png")
-```
-
-- Remember this graphic? Let's stop and take stock of what we are doing at this point.
-- I do want to spend some time with you before our time together ends discussing logistic regression.
-    - While seriously old it is still seriously powerful.
-    - I also want to demonstrate how you can use CART models to improve logistic regression models.
-    - These things don't have to exist in isolation.
-- There is also room here for you all to have some say in how we close out the semester.
-    - I assume you don't want to do more data transformation, although we can if you love it that much.
-- Ideas/Options:
-    - GIS
-        - Covid Maps!!!!
-    - Performing reproducible research in R Markdown
-    - Web-scraping data
-    - More advanced programming techniques such as looping or writing custom functions.
-    - Deep dive on the math behind logistic regression, gini impurity, etc.
-
-
+- This cut-point could be anywhere.
