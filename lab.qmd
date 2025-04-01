@@ -5,7 +5,18 @@ format: html
 
 
 
-# Setup
+This lab is a little different from any previous lab. In this lab you will
+calculate risk, odds, and risk/odds ratios. And you will do so using a data set
+related to stroke.
+
+Congrats. You are doing public health.
+
+I also want you to use this lab to refresh your dplyr skills. I know it has been
+a while since we really flexed our dplyr muscles.
+
+
+Setup
+================================================================================
 
 ```{r}
 #| label: setup
@@ -16,15 +27,23 @@ library(tidyverse)
 strokes <-
   read_csv("data/strokes.csv") |>
   filter(gender != "Other")
+
 ```
 
 
 
-# Data - Strokes
+Data - Strokes
+================================================================================
 
-Source: [Kaggle Stroke Prediction Dataset](https://www.kaggle.com/fedesoriano/stroke-prediction-dataset)
+Source: [Kaggle Stroke Prediction
+Dataset](https://www.kaggle.com/fedesoriano/stroke-prediction-dataset)
 
-> According to the World Health Organization (WHO) stroke is the 2nd leading cause of death globally, responsible for approximately 11% of total deaths. This dataset is used to predict whether a patient is likely to get stroke based on the input parameters like gender, age, various diseases, and smoking status. Each row in the data provides relavant information about the patient.
+> According to the World Health Organization (WHO) stroke is the 2nd leading
+> cause of death globally, responsible for approximately 11% of total
+> deaths. This dataset is used to predict whether a patient is likely to get
+> stroke based on the input parameters like gender, age, various diseases, and
+> smoking status. Each row in the data provides relavant information about the
+> patient.
 
 ```{r}
 strokes
@@ -33,52 +52,47 @@ strokes
 1. id: unique patient identifier
 2. gender: "Male", "Female" or "Other"
 3. age: age of the patient
-4. hypertension: 0 if the patient doesn't have hypertension, 1 if the patient has hypertension
-5. heart_disease: 0 if the patient doesn't have any heart diseases, 1 if the patient has a heart disease
+4. hypertension: 0 if the patient doesn't have hypertension, 1 if the patient
+   has hypertension
+5. heart_disease: 0 if the patient doesn't have any heart diseases, 1 if the
+   patient has a heart disease
 6. ever_married: "No" or "Yes"
-7. work_type: "children", "Govt_jov", "Never_worked", "Private" or "Self-employed"
+7. work_type: "children", "Govt_jov", "Never_worked", "Private" or
+   "Self-employed"
 8. residence_type: "Rural" or "Urban"
 9. avg_glucose_level: average glucose level in blood
 10. bmi: body mass index
 11. smoking_status: "formerly smoked", "never smoked", "smokes" or "Unknown"*
-12. stroke: 1 if the patient had a stroke or 0 if not
-*Note: "Unknown" in smoking_status means that the information is unavailable for this patient
+12. stroke: 1 if the patient had a stroke or 0 if not *Note: "Unknown" in
+smoking_status means that the information is unavailable for this patient
+
+There aren't any oddly named columns in this data.
 
 
 
-# Lab
+Lab
+================================================================================
 
-## Task 01
 
-- Question: The data includes some information about the employment of the patients. Which work type is the most prevalent in this data set? In other words, group by the work_type column and then count the number of each work type.
-- Answer:
+Task 01
+--------------------------------------------------------------------------------
 
-To prevent confusion, your options below are identical to what you should have found in your data. In Canvas complete this task with one of the following:
-
-    1. children
-    2. Govt_job
-    3. Never_worked
-    4. Private
-    5. Self-employed
-
-Helpful Hints: The entries in the `work_type` column are formatted oddly, but that's OK. There's always _something_ funny about a data set.
-
-```{r}
-
-## YOUR CODE HERE!!!
-
-```
-
-## Task 02
-
-- Question: Use R to calculate the percent of patients who are children (based on work type/Task 01).
-- Answer: 
-
-Helpful Hints:
-
-- In other words, divide the work_type count by the total.
-- And yes, you CAN do this without R, but the point is to do this using R.
-- And the easiest way is to calculate the percent for all of the work types.
+- **Question:** The data includes some information about the employment of the
+  patients. Which work type is the most prevalent in this data set? In other
+  words, group by the work_type column and then count the number of each work
+  type.
+- **Answer:** 
+- Helpful Hints:
+    - To prevent confusion, your options below are identical to what you should
+      have found in your data. In Canvas complete this task with one of the
+      following:
+          1. children
+          2. Govt_job
+          3. Never_worked
+          4. Private
+          5. Self-employed
+      - The entries in the `work_type` column are formatted oddly, but that's
+        OK.There's always _something_ funny about a data set.
 
 ```{r}
 
@@ -87,16 +101,33 @@ Helpful Hints:
 ```
 
 
-## Task 03
+Task 02
+--------------------------------------------------------------------------------
 
-- Question: Which patients are more likely to have had a stroke, men or women? 
-- Answer:
+- **Question:** Use R to calculate the percent of patients who are children
+  (based on work type/Task 01).
+- **Answer:** 
+- Helpful Hints:
+    - In other words, divide the work_type count by the total.
+    - And yes, you CAN do this without R, but the point is to do this using R.
+    - And the easiest way is to calculate the percent for all of the work types.
 
-Helpful Hints:
+```{r}
 
-- We want to calculate the percentage of patients with a stroke.
-    - This is just like what we did with the titanic data, but we calculated the percent of passengers who died.
-    - But it is the EXACT same idea.
+## YOUR CODE HERE!!!
+
+```
+
+
+Task 03
+--------------------------------------------------------------------------------
+
+- **Question:** Which patients are more likely to have had a stroke, males or
+  females?
+- **Answer:**
+- Helpful Hints:
+    - We want to calculate the percentage of patients with a stroke, stratified
+      by gender.
 
 ```{r}
 
@@ -105,14 +136,16 @@ Helpful Hints:
 ```
 
 
-## Task 04
+Task 04
+--------------------------------------------------------------------------------
 
-- Question: Do men with hypertension have a higher risk of stroke than women with hypertension?
-- Answer: 
-
-- This is ALMOST the same question.
-- All we need to do is to filter down to those with hypertension.
-- Filter should come before group by.
+- **Question:** Do men with hypertension have a higher risk of stroke than women
+  with hypertension?
+- **Answer:** 
+- Helpful Hints:
+    - This is ALMOST the same question.
+    - All we need to do is to filter down to those with hypertension.
+    - Filter should come before group by.
 
 ```{r}
 
@@ -121,10 +154,11 @@ Helpful Hints:
 ```
 
 
-## Task 05
+Task 05
+--------------------------------------------------------------------------------
 
-- Question: How many patients are over the age of 65?
-- Answer:
+- **Question:** How many patients are over the age of 65?
+- **Answer:**
 
 ```{r}
 
@@ -133,10 +167,11 @@ Helpful Hints:
 ```
 
 
-## Task 06
+Task 06
+--------------------------------------------------------------------------------
 
-- Question: What is the risk ratio for stroke for men compared to women?
-- Answer: 
+- **Question:** What is the risk ratio for stroke for men compared to women?
+- **Answer:** 
 
 Helpful Hint:
 
@@ -144,7 +179,9 @@ Helpful Hint:
 - First calculate the risk of stroke for men and women.
     - Save this in a table called risk.
 - Then calculate the risk ratio.
-- And remember, if you can't figure out the fancy code for the risk ratio but you can figure out the gender-specific risk, you can just use R like a calculator and calculate the risk ratio manually.
+- And remember, if you can't figure out the fancy code for the risk ratio but
+  you can figure out the gender-specific risk, you can just use R like a
+  calculator and calculate the risk ratio manually.
 
 ```{r}
 
@@ -152,10 +189,12 @@ Helpful Hint:
 
 ```
 
-## Task 07
 
-- Question: What is the odds ratio for for stroke for men compared to women?
-- Answer: 
+Task 07
+--------------------------------------------------------------------------------
+
+- **Question:** What is the odds ratio for for stroke for men compared to women?
+- **Answer:** 
 
 ```{r}
 
@@ -163,16 +202,20 @@ Helpful Hint:
 
 ```
 
-- PLEASE PLEASE PLEASE observe the odds nearly equals the risk and the odds ratio and risk ratio are nearly identical.
+- PLEASE PLEASE PLEASE observe the odds nearly equals the risk and the odds
+  ratio and risk ratio are nearly identical.
 - This is because strokes are rare compared to drowning on the Titanic.
 - That said, this data does seem to have an unusually high stroke rate.
 
-## Task 08
+
+Task 08
+--------------------------------------------------------------------------------
 
 Calculate the risk ratios for having hypertension and having heart disease.
 
-- Question:  Which chronic illness, hypertension or heart disease, increases the risk of having a stroke the most?
-- Answer: 
+- **Question:** Which chronic illness, hypertension or heart disease, increases
+  the risk of having a stroke the most?
+- **Answer:** 
 
 ```{r}
 
@@ -180,18 +223,25 @@ Calculate the risk ratios for having hypertension and having heart disease.
 
 ```
 
-## Task 09
 
-Thus far, we have the risk/odds of having a stroke for variables which have TWO groups. Smoking status is different. Take a look at the following:
+Task 09
+--------------------------------------------------------------------------------
+
+Thus far, we have the risk/odds of having a stroke for variables which have TWO
+groups. Smoking status is different. Take a look at the following:
 
 ```{r}
 strokes |> count(smoking_status)
 ```
 
-This variable has four possibilities although Unknown isn't very helpful. Calculate the odds ratio of smokers to those who have never smoked. Then calculate the odds ratio of ex-smokers to those who have never smoked.
+This variable has four possibilities although Unknown isn't very
+helpful. Calculate the odds ratio of smokers to those who have never
+smoked. Then calculate the odds ratio of ex-smokers to those who have never
+smoked.
 
-- Question:  Compared to those who never smoked, which group (smokers, former smokers) has the biggest risk of having a stroke according to this data?
-- Answer: 
+- **Question:** Compared to those who never smoked, which group (smokers, former
+  smokers) has the biggest risk of having a stroke according to this data?
+- **Answer:**
 
 ```{r}
 

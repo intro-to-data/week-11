@@ -1,192 +1,67 @@
 ---
-title: "Linear, Risk, Odds"
+title: "Risk, Odds, Ratios"
 format: html
 ---
 
 
-# Goals
 
-- Linear Regression:
-  - Prediction vs Causality
-  - Prediction vs Fitting
-  - Application of this technique in real life.
-- Risk vs Odds
-- Risk Ratio vs Odds Ratio
+Goals
+================================================================================
 
-Check-in with where we are at:
+- Some funky base-R skillz
+- Introduce you to my dear friends:
+    - Risk
+    - Odds
+    - Risk Ratio
+    - Odds Ratio
 
-```{r}
-#| fig-align: center
-include_graphics("includes/data-science.png")
-```
+I know this seems like a lot of new ideas, but I'm really only introducing a two
+new ideas:
+
+1. Odds
+2. Calculating a ratio
+
+In the coming weeks, we will connect these ideas to logistic regression, but
+_that_ is for another day.
 
 
 
-# Setup
+Setup
+================================================================================
 
-This week's data consists of data sets we have seen before.
+This week's data consists of a data set we have seen before.
 
 ```{r}
 #| label: setup
-#| echo: false
-#| warning: false
+#| include: false
 
-library(cowplot)
 library(knitr)
 library(janitor)
-library(rio)
+library(patchwork)
 library(tidymodels)
 library(tidyverse)
 
 appointments <- read_csv("data/Appointments.csv") |> clean_names()
-insurance <- read_csv("data/insurance.csv")
+
 ```
 
 
 
-# Insurance
-
-
-## Data
-
-```{r}
-insurance |> head()
-```
-
-## Data Dictionary
-
-- age: age of primary beneficiary
-- sex: insurance contractor gender, female, male
-- bmi: Body mass index, providing an understanding of body, weights that are relatively high or low relative to height,
-objective index of body weight (kg / m ^ 2) using the ratio of height to weight, ideally 18.5 to 24.9
-- children: Number of children covered by health insurance / Number of dependents
-- smoker: Smoking
-- region: the beneficiary's residential area in the US, northeast, southeast, southwest, northwest.
-- charges: Individual medical costs billed by health insurance
-
-Data Source: [https://www.kaggle.com/datasets/mirichoi0218/insurance](https://www.kaggle.com/datasets/mirichoi0218/insurance)
-
-## Linear Regression - Insurance Claims
-
-Does this look familiar?
-
-```{r}
-ggplot(insurance, aes(x = age, y = charges, color = smoker)) +
-  geom_point() +
-  labs(x = "Age", y = "Charges") +
-  theme_minimal_grid()
-```
-
-- It should, we worked with this insurance data several weeks ago.
-- As we age, health insurance costs increase.
-- Regardless of age, average costs for smokers is higher than non-smokers.
-- This plot suggests this can predict charges using age and smoker status.
-
-```{r}
-lm_age_smoker <-
-  linear_reg() |>
-  fit(charges ~ age * smoker, data = insurance)
-tidy(lm_age_smoker)
-```
-
-```{r}
-glance(lm_age_smoker) |> head()
-```
-
-- The intercept for smokers is more than $20,000 higher than non-smokers.
-  - The intercept tells us the predicted value of y where x equals 0.
-  - Of course, nobody (alive) is exactly 0 years old.
-  - But it also tells us that on average, smokers cost $22,000 more than non-smokers, regardless of age.
-- Of course, there are many factors which affect cost which aren't in this model, so it has a pretty high standard error (sigma) of over $6,000.
-  - Look at the plot to see why.
-
-```{r}
-ggplot(insurance, aes(x = age, y = charges, color = smoker)) +
-  geom_point() +
-  geom_smooth(method = lm) +
-  labs(x = "Age", y = "Charges") +
-  theme_minimal_grid()
-```
-
-- For non-smokers, we have some outliers which pull the non-smoker average up.
-- For smokers, we have two bands and our model's fitted values are almost perfectly in-between.
-- To improve this model:
-  - Assess if the outliers are correct. If they aren't, consider removing them. If they are, what explains them?
-  - What explains the two different cost bands for smokers?
-  - Banding in a linear regression suggests there is either an error in the data (measurement error) or there is a categorical variable which could explain what is going on.
-  - Note: I keep saying explain, not cause. Depending on WHY you are modeling something, you may or may not care about causality.
-
-## Predicting
-
-Let's say I have some new data:
-
-```{r}
-# I will create a new tibble from two vectors of data.
-# This data does NOT contain any charges data, that is what I want to predict.
-new_charges <- tibble(
-  age = c(28, 31, 47, 63),
-  smoker = c('yes', 'no', 'yes', 'no')
-  )
-new_charges
-```
-
-So, given this new data, how can I predict charges for these people?
-
-```{r}
-new_charges <-
-  lm_age_smoker |>
-  augment(new_data = new_charges)
-new_charges
-```
-
-Note that last week when we used augment, we got TWO columns:
-
-- .pred
-- .residual
-
-But because we don't have any actual charges data, we cannot calculate the residuals. All we have is the predicted values.
-
-And we can see how this would fall onto our previous plot.
-
-```{r}
-ggplot(insurance, aes(x = age, y = charges, color = smoker)) +
-  geom_point() +
-  geom_smooth(method = lm) +
-  geom_point(
-    data = new_charges,
-    aes(x = age, y = .pred),
-    shape = 18, size = 5, color = "black"
-  ) +
-  labs(x = "Age", y = "Charges", title = "Predicted values overlaid original data") +
-  theme_minimal_grid()
-```
-
-And while this model is relatively simple, this is as real as it gets: Hierarchical Condition Categories (HCC)
-
-- HCC: A hierarchical model used to predict Medicare and non-Medicare patient costs.
-- Developed by the Centers for Medicare and Medicaid Services (CMS).
-- Hierarchical models (aka multilevel models) go beyond the scope of this class, but is a generalization of Ordinary Least Squares regression (linear).
-- The model includes variables (features) such as age and gender.
-  - Older patients are generally more expensive than their younger peers.
-- Also includes variables for disease diagnosis such as cancer, congestive heart failure (CHF), COPD, chronic kidney disease (CKD), etc.
-  - These variables are all true/false. You either have COPD or you do not.
-  - Progressive diseases such as CKD are handled by multiple variables (CKD 1, CKD 2, etc.)
-  - Each additional diagnosis adds to the expected patient cost.
-
-
-
-# Risk vs Odds
+Data
+================================================================================
 
 - Do you remember the appointments data set from the midterm?
-  - I am sympathetic if you chose to block it out.
+    - I am sympathetic if you chose to block it out.
+- For the midterm, I altered a few spelling irregularities for you.
+    - Today we will see it in its full glory.
 
-## Data
 
 ```{r}
 appointments |> head()
 ```
 
-## Data Dictionary
+Data Dictionary
+--------------------------------------------------------------------------------
 
   - patient_id: Unique identifier for that patient.
   - appointment_id: Unique identifier for each appointment
@@ -211,23 +86,110 @@ appointments |> head()
       - This is not my typo.
   - received_sms: Did the patient receive a SMS? TRUE or FALSE
   - no_show: Did the patient no-show? TRUE or FALSE
-  
-## Percent No Show
 
-- What percentage of appointments no-show?
-- This should feel REAL familiar.
+
+
+Funky Base-R Skillz
+================================================================================
+
+- Every dataframe is composed of rows and columns.
+- Every element in a column must be the same type.
+- In R, a column can also be called a vector.
+- A vector is just a collection of information with the same data type.
 
 ```{r}
-# Two paths, one destination:
 
-appointments |>
+foo <- c(1, 2, 3, 4)
+bar <- c(TRUE, FALSE, TRUE, FALSE)
+baz <- c("a", "B", "c", "D")
+foo
+bar
+baz
+
+```
+
+- I have created THREE vectors, foo, bar, and baz.
+- Each is epic in its own way.
+- And we can operate on these.
+
+
+```{r}
+sum(foo)
+```
+
+
+```{r}
+sum(bar)
+```
+
+
+```{r}
+length(baz)
+```
+
+We can perform filtering operations on vectors using SQUARE BRACKET NOTATION.
+
+```{r}
+bar[foo < 3]
+```
+
+```{r}
+baz[foo <= 3]
+```
+
+```{r}
+foo[bar]
+```
+
+
+```{r}
+baz[bar]
+```
+
+```{r}
+baz[!bar]
+```
+
+- We filter our vectors by performing a boolean test.
+- I know this seems random, but it will be important later.
+
+
+
+Percentage, Risk, Odds
+================================================================================
+
+Because `no-show` can be treated as a 1/0 column, we can represent the 
+probability of a no-show appointment as:
+
+ $P(no\_show) = \frac{\sum_{n=1}^{n} no\_show}{n}$
+
+The probability of a no-show case is the count of no-show cases divided by the
+total number of cases.
+
+Percent No Show
+--------------------------------------------------------------------------------
+
+- **Question:** What percentage of appointments no-show?
+- **Answer:** 20.2%
+- Helpful Hints:
+    - I hope this feels like a review.
+
+```{r}
+
+# Three paths, one destination:
+
+# One
+prc_1 <-
+  appointments |>
   summarize(
     den = n(),
     num = sum(no_show),
-    p = 100*num/den
+    p = round(100*num/den,1)
   )
 
-appointments |>
+# Two
+prc_2 <-
+  appointments |>
   summarize(
     den = n(),
     num = sum(no_show)
@@ -235,46 +197,87 @@ appointments |>
   mutate(
     p = round(100*num/den,1)
   )
-```
 
-Calculating a rate requires a numerator and a denominator. To calculate the percentage of appointments which no-show takes three steps:
-
-1. Denominator (den): Total number of appointments.
-2. Numerator (num): Number of no-shows appointments.
-3. Percentage (p): $100 * (Numerator/Denominator)$
-
-All three of these steps can take place in a single summarize command or you can calculate the percentage in a separate mutate function as shown above.
-
-## Risk No Show
-
-Now calculate the over-all RISK of having a no-show appointment.
-
-```{r}
-appointments |>
+# Three
+prc_3 <-
+  appointments |>
   summarize(
     den = n(),
     num = sum(no_show),
-    risk = 100*num/den
+    p = round(100*mean(no_show),1)
   )
+
+
+wrap_table(prc_1) / wrap_table(prc_2) / wrap_table(prc_3) 
 ```
 
-- Risk is the measure of the likelihood of a particular outcome you are most likely familiar with.
-  - The only difference between a percentage calculation and a risk calculation is the label.
-- More formally: The ratio of the number of events that produce the outcome of interest to the total number of events.
-  - You don't have to multiply by 100. We often do, but it isn't required.
-  - But you do want to be clear if you have or not.
-  - In other words: .202 risk is the same as 20.2% risk. Just make sure your audience knows if you are using the raw risk or the percent risk.
+Calculating a rate requires a numerator and a denominator. To calculate the
+percentage of appointments which no-show can take three steps:
 
-## Odds No Show 
+1. Denominator (den): Total number of appointments.
+2. Numerator (num): Number of no-shows appointments.
+3. Percentage (p): 100 * (Numerator/Denominator)
+
+All three of these steps can take place in a single summarize command or you can
+calculate the percentage in a separate mutate function as shown above.
+
+If you use group_by, it can force you to use a mutate.
+
+
+Risk No Show
+--------------------------------------------------------------------------------
+
+Now calculate the over-all RISK of a no-show appointment.
+
+```{r}
+
+# You can pick any way you want to calculate late this.
+# As long as your numbers match my numbers.
+
+rsk_1 <-
+  appointments |>
+  summarize(
+    den = n(),
+    num = sum(no_show),
+    risk = round(100*num/den,1)
+  )
+rsk_1
+
+```
+
+- Risk is an important measure of the likelihood of a particular outcome you   
+  are concerned with.
+    - The only difference between a percentage calculation and a risk 
+      calculation is the label.
+    - Here, I am expressing risk as a percentage.
+    - You can also express it as a simple rate. (Not multiplied by 100)
+    - Or you can express risk as a ratio of some other base such as 1,000.
+- More formally: The ratio of the number of events that produce the outcome of
+  interest to the total number of events.
+    - You don't have to multiply by 100. We often do, but it isn't required.
+    - But you do want to be clear if you have or not.
+    - In other words: .202 risk is the same as 20.2% risk. Just make sure your
+      audience knows if you are using the risk rate or the percent risk.
+
+Congratulations - YOU ALREADY KNEW HOW TO DO THAT!!!
+
+
+Odds No Show
+--------------------------------------------------------------------------------
 
 - The odds of a no-show are a related concept.
 - Odds provide another measure of the likelihood of a particular outcome.
-- The ratio of the number of events that produce the outcome of interest to the number that do not. 
+- The ratio of the number of events that produce the outcome of interest to the
+  number that do not.
+- This ratio for odds is always higher than the risk.
+
 
 ```{r}
 # These two methods are functionally equivalent.
 
-appointments |>
+
+odd_1 <-
+  appointments |>
   summarize(
     den = n() - sum(no_show),
     num = sum(no_show),
@@ -283,21 +286,30 @@ appointments |>
 
 # OR
 
-appointments |>
+odd_2 <-
+  appointments |>
   summarize(
     den = sum(!no_show),
     num = sum(no_show),
     odds = num/den
   )
+
+wrap_table(odd_1) / wrap_table(odd_2)
+
 ```
 
-- Unlike risk, never multiply odds by 100.
+- Never multiply odds by 100.
+    - BECAUSE IT IS NOT A PERCENTAGE.
+    - **I can't stress this enough.**
 - Odds are often written as a fraction or ratio.
   - In this example, the odds are _approximately_ 1 to 4.
-  - Read as: For every one no-show, you would expect four arrived appointments.
-  - For rare events, the odds and the risk are very similar.
-    - See below for a demo of how the risk roughly equals odds for adequately rare events.
-  - When expressed as a decimal, the odds tend to "over-dramatize" likelihood of an event because we more naturally think in terms of risk than odds.   
+  - Read as: For every one no-show, you would expect about four arrived
+    appointments.
+  - For rare events, the odds and the risk are very similar (converge).
+      - See below for a demo of how the risk roughly equals odds for adequately
+        rare events.
+  - When expressed as a decimal, the odds tend to "over-dramatize" likelihood of
+    an event because we more naturally think in terms of risk than odds.
 
 Comparing Hypothetical Odds to Risk:
 
@@ -307,93 +319,101 @@ Comparing Hypothetical Odds to Risk:
 |      20 |     800 |          820 | .0240 | .0250 |
 |      20 |    8000 |         8020 | .0020 | .0025 | 
 
-- The above table contains the actual risk, not the percent.
+- The above table contains the risk ratio, not the percent.
 - This makes it easier to compare to the odds.
-- As the risk of no-show decreases, risk and odds become basically identical.
-- We will expand on the utility of this next week when we introduce logistic regression.
+- As the risk of no-show decreases, risk and odds converge, becoming basically
+  identical.
+- We will expand on the utility of this next week when we introduce logistic
+  regression.
 
 
 
-# Risk Ratio vs Odds Ratio
+Ratios
+================================================================================
 
-- Sometimes we want to compare the risk of two groups.
-- For example, compare the risk of a no-show when the patient received a SMS reminder to the risk of a no-show when the patient did not receive a SMS reminder.
+- ~Sometimes~ Often we want to compare the risk of two groups.
+- For example, compare the risk of a no-show when the patient received a SMS
+  reminder to the risk of a no-show when the patient did not receive a SMS
+  reminder.
+
 
 ```{r}
-# I will save my calculated results to risk_sms for the next step.
-# I do not calculate percent risk here.
+# Saves my calculated results to risk_sms for the next step.
+
 risk_sms <- 
   appointments |>
   group_by(received_sms) |>
   summarize(
     den = n(),
     num = sum(no_show),
-    risk = num/den
+    risk = 100*num/den
   )
 risk_sms
+
 ```
 
-- Appointments where the patient received a SMS message have a higher risk (percentage) of no-show appointments than appointments where the patient did not receive a SMS reminder.
-- But how can we compare these risk levels?
+- Appointments where the patient received a SMS message have a higher risk
+  of no-show appointments than appointments where the patient did not receive a
+  SMS reminder.
+- Surely there's a way to express this as a single number!
+
 
 RISK RATIO
+--------------------------------------------------------------------------------
 
-To calculate a risk ratio: Divide the risk of the higher risk group by the risk of the lower risk group. You want a fraction GREATER than 1.
+To calculate a risk ratio: 
+
+- Divide the risk of the group of interest by the risk of the other group.
+    - Yes. It is that simple.
+- Risk Ratio:
+    - A ratio greater than one indicates risk.
+    - A ratio close to / equal to one indicates no risk.
+    - A ratio smaller than one indicates protection.
+- In public health, we tend to talk about risk factors a lot.
+    - These are risk ratios GREATER than one.
+- Social Workers like to also talk about protective features:
+    - These are risk ratios LESS than one.
+- Nobody is much interested in talking about ratios close to one, because they
+  don't matter much.
 
 ```{r}
 # Calculating Relative Risk
 # Two paths to the same destination.
 
-risk_sms |>
+rr_1 <-
+  risk_sms |>
+  summarize(
+    # Oh look, square brackets!!!
+    risk_ratio = risk[received_sms == TRUE] / risk[received_sms == FALSE]
+  )
+
+rr_2 <-
+  risk_sms |>
   summarize(
     risk_ratio = risk[received_sms] / risk[!received_sms]
   )
 
-risk_sms |>
-  summarize(
-    risk_ratio = risk[received_sms == TRUE] / risk[received_sms == FALSE]
-  )
+wrap_table(rr_1) / wrap_table(rr_2)
 ```
 
-- Let's talk about that funky "square bracket" notation.
-- You may recall that I told you, in passing, that a dataframe/tibble uses a vector as a column.
-  - And then I never told you what a vector was again.
-  - A vector is just a collection of information with the same data type.
 
-```{r}
-foo <- c(1, 2, 3, 4)
-bar <- c(TRUE, FALSE, TRUE, FALSE)
-foo
-bar
-```
+Odds Ratio
+--------------------------------------------------------------------------------
 
-Here, I have created TWO vectors, foo and bar. And we can operate on these.
-
-```{r}
-sum(foo)
-```
-
-```{r}
-sum(bar)
-```
-
-And we can perform filtering operations using SQUARE BRACKET NOTATION.
-
-```{r}
-foo[bar == TRUE]
-```
-
-OR
-
-```{r}
-bar[foo < 3]
-```
-
-We rarely need to use square bracket notation when using the tidyverse functions, but I have never found another way to calculate risk and odds ratios.
+We rarely need to use square bracket notation when using the tidyverse
+functions, but I have never found another way to calculate risk and odds ratios.
 
 Speaking of risk, let's calculate the Odds Ratio of no-show.
 
+- Odds Ratio:
+    - A ratio greater than one indicates risk.
+    - A ratio close to / equal to one indicates no risk.
+    - A ratio smaller than one indicates protection.
+
+
 ```{r}
+
+# Getting fancy! All in one shot!
 appointments |>
   group_by(received_sms) |>
   summarize(
@@ -404,9 +424,14 @@ appointments |>
   summarize(
     odds_ratio = odds[received_sms]/odds[!received_sms]
   )
+
 ```
 
-- Because no-show is not rare, the odds ratio is more dramatic than the risk ratio.
+- Because no-show is not rare, the odds ratio is more dramatic than the risk
+  ratio.
 - It isn't wrong, we just don't easily think about things this way.
-- Thus, it can be misleading.
-- And next week I will explain why we did all of this.
+    - But it can be misleading.
+- So why do we use odds at all?
+    - Odds and risk converge for rare events.
+    - Odds care conveniently connected to logistic regression.
+    - But that's a different lecture.

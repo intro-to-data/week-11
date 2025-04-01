@@ -1,6 +1,0 @@
-- [ ] lecture on linear regression
-  - Practical applications
-  - Hierchical modeling
-  - 
-- [ ] lecture on risk, risk ratio
-- [ ] lecture on odds, odds ratio
