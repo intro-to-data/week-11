@@ -242,6 +242,10 @@ smoked.
 - **Question:** Compared to those who never smoked, which group (smokers, former
   smokers) has the biggest risk of having a stroke according to this data?
 - **Answer:**
+- Helpful Hint:
+    - This will involve some more advanced filtering which we have not practiced
+      very many times. The following link will be useful.
+      https://dplyr.tidyverse.org/reference/filter.html
 
 ```{r}
 

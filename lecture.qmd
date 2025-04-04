@@ -367,7 +367,7 @@ To calculate a risk ratio:
     - Yes. It is that simple.
 - Risk Ratio:
     - A ratio greater than one indicates risk.
-    - A ratio close to / equal to one indicates no risk.
+    - A ratio close to / equal to one indicates no relative risk.
     - A ratio smaller than one indicates protection.
 - In public health, we tend to talk about risk factors a lot.
     - These are risk ratios GREATER than one.
@@ -407,7 +407,7 @@ Speaking of risk, let's calculate the Odds Ratio of no-show.
 
 - Odds Ratio:
     - A ratio greater than one indicates risk.
-    - A ratio close to / equal to one indicates no risk.
+    - A ratio close to / equal to one indicates no relative risk.
     - A ratio smaller than one indicates protection.
 
 
@@ -433,5 +433,5 @@ appointments |>
     - But it can be misleading.
 - So why do we use odds at all?
     - Odds and risk converge for rare events.
-    - Odds care conveniently connected to logistic regression.
+    - Odds are conveniently connected to logistic regression.
     - But that's a different lecture.

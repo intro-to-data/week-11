@@ -75,7 +75,7 @@ Task 04
 
 - Question: Do men with hypertension have a higher risk of stroke than women
   with hypertension?
-- Answer: 
+- Answer: No. Female patients with hypertension have a higher risk of stroke.
 
 ```{r}
 
@@ -95,7 +95,7 @@ Task 05
 --------------------------------------------------------------------------------
 
 - Question: How many patients are over the age of 65?
-- Answer:
+- Answer: 965
 
 ```{r}
 strokes |> filter(age > 65) |> count()
@@ -165,6 +165,15 @@ Calculate the risk ratios for having hypertension and having heart disease.
 
 ```{r}
 
+strokes |>
+  group_by(hypertension) |>
+  summarize(risk = 100*mean(stroke)) |>
+  summarize(RR = risk[hypertension == 1]/risk[hypertension == 0])
+
+strokes |>
+  group_by(heart_disease) |>
+  summarize(risk = 100*mean(stroke)) |>
+  summarize(RR = risk[heart_disease == 1]/risk[heart_disease == 0])
 
 
 ```
@@ -187,10 +196,33 @@ smoked.
 
 - **Question:** Compared to those who never smoked, which group (smokers, former
   smokers) has the biggest risk of having a stroke according to this data?
-- **Answer:**
+- **Answer:** Patients who formerly smoked have a higher odds ratio than non-smokers.
 
 ```{r}
 
+strokes |>
+  filter(smoking_status == "smokes" | smoking_status == "never smoked") |>
+  group_by(smoking_status) |>
+  summarize(
+    had_stroke = sum(stroke),
+    no_stroke = sum(!stroke),
+    odds = had_stroke / no_stroke
+  ) |>
+  summarize(
+    OR = odds[smoking_status == "smokes"]/odds[smoking_status == "never smoked"]
+  )
 
+
+strokes |>
+  filter(smoking_status == "formerly smoked" | smoking_status == "never smoked") |>
+  group_by(smoking_status) |>
+  summarize(
+    had_stroke = sum(stroke),
+    no_stroke = sum(!stroke),
+    odds = had_stroke / no_stroke
+  ) |>
+  summarize(
+    OR = odds[smoking_status == "formerly smoked"]/odds[smoking_status == "never smoked"]
+  )
 
 ```
